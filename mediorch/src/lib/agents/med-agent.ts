@@ -1,7 +1,7 @@
 "use server"
 
 import { ChatOpenAI } from "@langchain/openai"
-import { prisma } from "@/lib/db"
+import { store } from "@/lib/store"
 import { isDemoMode } from "@/lib/ai-config"
 import { getMedicationDemoResponse, getInteractionDemoResponse } from "@/lib/demo-responses"
 
@@ -11,9 +11,7 @@ const model = new ChatOpenAI({
 })
 
 export async function analyzeMedications(userId: string) {
-  const medications = await prisma.medication.findMany({
-    where: { userId, isActive: true },
-  })
+  const medications = store.medication.findByUser(userId).filter(m => m.isActive)
 
   if (isDemoMode()) {
     return getMedicationDemoResponse(medications)
@@ -59,9 +57,7 @@ export async function checkMedicationInteraction(
   userId: string,
   newMedication: string
 ) {
-  const medications = await prisma.medication.findMany({
-    where: { userId, isActive: true },
-  })
+  const medications = store.medication.findByUser(userId).filter(m => m.isActive)
 
   const currentMeds = medications.map((m) => m.name).join(", ")
 

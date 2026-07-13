@@ -33,9 +33,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# database
-*.db
-*.db-journal
+# database (local in-memory only, no files)
 
 # logs
 *.log

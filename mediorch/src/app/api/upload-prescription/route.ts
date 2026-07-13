@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { store } from "@/lib/store"
 import { isDemoMode } from "@/lib/ai-config"
 
 function generateDemoPrescriptionData(fileName: string) {
@@ -90,21 +90,15 @@ export async function POST(req: Request) {
       const data = generateDemoPrescriptionData(fileName)
 
       for (const condition of data.conditions) {
-        await prisma.condition.create({
-          data: { ...condition, userId: session.user.id },
-        })
+        store.condition.create({ ...condition, userId: session.user.id })
       }
 
       for (const med of data.medications) {
-        await prisma.medication.create({
-          data: { ...med, userId: session.user.id },
-        })
+        store.medication.create({ ...med, userId: session.user.id })
       }
 
       for (const provider of data.providers) {
-        await prisma.provider.create({
-          data: { ...provider, userId: session.user.id },
-        })
+        store.provider.create({ ...provider, userId: session.user.id })
       }
 
       return Response.json({
@@ -160,21 +154,15 @@ Provide reasonable defaults for severity and specialty if not specified.`
       const parsed = JSON.parse(cleaned)
 
       for (const condition of parsed.conditions || []) {
-        await prisma.condition.create({
-          data: { ...condition, userId: session.user.id },
-        })
+        store.condition.create({ ...condition, userId: session.user.id })
       }
 
       for (const med of parsed.medications || []) {
-        await prisma.medication.create({
-          data: { ...med, userId: session.user.id, isActive: true },
-        })
+        store.medication.create({ ...med, userId: session.user.id, isActive: true })
       }
 
       for (const provider of parsed.providers || []) {
-        await prisma.provider.create({
-          data: { ...provider, userId: session.user.id },
-        })
+        store.provider.create({ ...provider, userId: session.user.id })
       }
 
       return Response.json({

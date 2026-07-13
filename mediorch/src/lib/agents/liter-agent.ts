@@ -1,7 +1,7 @@
 "use server"
 
 import { ChatOpenAI } from "@langchain/openai"
-import { prisma } from "@/lib/db"
+import { store } from "@/lib/store"
 import { isDemoMode } from "@/lib/ai-config"
 import { getLiteratureDemoResponse, getSearchDemoResponse } from "@/lib/demo-responses"
 
@@ -11,9 +11,7 @@ const model = new ChatOpenAI({
 })
 
 export async function findRelevantResearch(userId: string) {
-  const conditions = await prisma.condition.findMany({
-    where: { userId },
-  })
+  const conditions = store.condition.findByUser(userId)
 
   if (isDemoMode()) {
     return getLiteratureDemoResponse(conditions.map((c) => c.name))

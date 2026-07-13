@@ -5,7 +5,7 @@ import { analyzeMedications, checkMedicationInteraction } from "./med-agent"
 import { prepareForVisit, summarizeAfterVisit } from "./visit-agent"
 import { translateToPlainLanguage, explainInsuranceTerm, navigateQuestion } from "./nav-agent"
 import { findRelevantResearch, searchTopic } from "./liter-agent"
-import { prisma } from "@/lib/db"
+import { store } from "@/lib/store"
 import { isDemoMode } from "@/lib/ai-config"
 import { getOrchestratorDemoResponse } from "@/lib/demo-responses"
 
@@ -44,11 +44,8 @@ export async function orchestrate(
     }
 
     if (message.toLowerCase().includes("find recent research relevant to my conditions")) {
-      const userDataCheck = await prisma.user.findUnique({
-        where: { id: userId },
-        include: { conditions: true },
-      })
-      const condNames = userDataCheck?.conditions.map((c) => c.name) || []
+      const userConditions = store.condition.findByUser(userId)
+      const condNames = userConditions.map((c) => c.name)
       const { getLiteratureDemoResponse } = await import("@/lib/demo-responses")
       const demoRes = getLiteratureDemoResponse(condNames)
       return { response: demoRes.response, plainLanguage: demoRes.plainLanguage, agentType: "literature" }
@@ -61,18 +58,16 @@ export async function orchestrate(
       return { response: demoRes.response, agentType: "literature" }
     }
 
-    const userData = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        conditions: true,
-        medications: { where: { isActive: true } },
-        appointments: { where: { status: "upcoming" }, take: 3, orderBy: { date: "asc" } },
-      },
-    })
+    const userConditions = store.condition.findByUser(userId)
+    const userMedications = store.medication.findByUser(userId).filter(m => m.isActive)
+    const userAppointments = store.appointment.findByUser(userId)
+      .filter(a => a.status === "upcoming")
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 3)
 
-    const conditionSummary = userData?.conditions.map((c) => c.name).join(", ") || "none listed"
-    const medSummary = userData?.medications.map((m) => m.name).join(", ") || "none"
-    const apptSummary = userData?.appointments.map((a) => `${a.title} on ${new Date(a.date).toLocaleDateString()}`).join(", ") || "none"
+    const conditionSummary = userConditions.map((c) => c.name).join(", ") || "none listed"
+    const medSummary = userMedications.map((m) => m.name).join(", ") || "none"
+    const apptSummary = userAppointments.map((a) => `${a.title} on ${new Date(a.date).toLocaleDateString()}`).join(", ") || "none"
 
     const demoResult = getOrchestratorDemoResponse(message, conditionSummary, medSummary, apptSummary)
     return {
@@ -108,10 +103,9 @@ Options:
       break
     }
     case "visit": {
-      const upcoming = await prisma.appointment.findFirst({
-        where: { userId, status: "upcoming" },
-        orderBy: { date: "asc" },
-      })
+      const upcoming = store.appointment.findByUser(userId)
+        .filter(a => a.status === "upcoming")
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]
       const visitResult = await prepareForVisit(userId, upcoming?.id)
       result = {
         response: visitResult.response,
@@ -137,18 +131,16 @@ Options:
       break
     }
     default: {
-      const userData = await prisma.user.findUnique({
-        where: { id: userId },
-        include: {
-          conditions: true,
-          medications: { where: { isActive: true } },
-          appointments: { where: { status: "upcoming" }, take: 3, orderBy: { date: "asc" } },
-        },
-      })
+      const userConditions = store.condition.findByUser(userId)
+      const userMedications = store.medication.findByUser(userId).filter(m => m.isActive)
+      const userAppointments = store.appointment.findByUser(userId)
+        .filter(a => a.status === "upcoming")
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(0, 3)
 
-      const conditionSummary = userData?.conditions.map((c) => c.name).join(", ") || "none listed"
-      const medSummary = userData?.medications.map((m) => m.name).join(", ") || "none"
-      const apptSummary = userData?.appointments.map((a) => `${a.title} on ${a.date.toLocaleDateString()}`).join(", ") || "none"
+      const conditionSummary = userConditions.map((c) => c.name).join(", ") || "none listed"
+      const medSummary = userMedications.map((m) => m.name).join(", ") || "none"
+      const apptSummary = userAppointments.map((a) => `${a.title} on ${new Date(a.date).toLocaleDateString()}`).join(", ") || "none"
 
       const contextPrompt = `You are MediOrch, the main orchestrator AI for a patient-controlled health management system. You coordinate multiple specialist AI agents to help patients manage their health.
 
@@ -174,23 +166,7 @@ Keep your response warm, clear, and actionable.`
     }
   }
 
-  await prisma.chatHistory.create({
-    data: {
-      userId,
-      role: "user",
-      content: message,
-      agentType: "orchestrator",
-    },
-  })
-
-  await prisma.chatHistory.create({
-    data: {
-      userId,
-      role: "assistant",
-      content: result.response,
-      agentType: agentType,
-    },
-  })
+  // Chat history is not persisted in demo mode (in-memory only)
 
   return {
     response: result.response,

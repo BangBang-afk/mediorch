@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { store } from "@/lib/store"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
@@ -8,16 +8,18 @@ export default async function DashboardPage() {
   const session = await auth()
   if (!session?.user?.id) return null
 
-  const [conditions, medications, providers, appointments] = await Promise.all([
-    prisma.condition.count({ where: { userId: session.user.id } }),
-    prisma.medication.count({ where: { userId: session.user.id, isActive: true } }),
-    prisma.provider.count({ where: { userId: session.user.id } }),
-    prisma.appointment.findMany({
-      where: { userId: session.user.id, status: "upcoming" },
-      orderBy: { date: "asc" },
-      take: 5,
-    }),
-  ])
+  const userConditions = store.condition.findByUser(session.user.id)
+  const userMedications = store.medication.findByUser(session.user.id)
+  const userProviders = store.provider.findByUser(session.user.id)
+  const userAppointments = store.appointment.findByUser(session.user.id)
+
+  const conditions = userConditions.length
+  const medications = userMedications.filter(m => m.isActive).length
+  const providers = userProviders.length
+  const appointments = userAppointments
+    .filter(a => a.status === "upcoming")
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 5)
 
   const stats = [
     { label: "Conditions", value: conditions, icon: "🩺", gradient: "from-blue-500 to-cyan-500" },

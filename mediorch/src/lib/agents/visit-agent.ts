@@ -1,7 +1,7 @@
 "use server"
 
 import { ChatOpenAI } from "@langchain/openai"
-import { prisma } from "@/lib/db"
+import { store } from "@/lib/store"
 import { isDemoMode } from "@/lib/ai-config"
 import { getVisitPrepDemoResponse, getPostVisitDemoResponse } from "@/lib/demo-responses"
 
@@ -14,24 +14,18 @@ export async function prepareForVisit(
   userId: string,
   appointmentId?: string
 ) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      conditions: true,
-      medications: { where: { isActive: true } },
-      providers: true,
-    },
-  })
-
-  if (!user) throw new Error("User not found")
+  const conditions = store.condition.findByUser(userId)
+  const medications = store.medication.findByUser(userId).filter(m => m.isActive)
+  const providers = store.provider.findByUser(userId)
+  const appointments = store.appointment.findByUser(userId)
 
   if (isDemoMode()) {
     const appointment = appointmentId
-      ? await prisma.appointment.findUnique({ where: { id: appointmentId } })
+      ? appointments.find(a => a.id === appointmentId) ?? null
       : null
 
-    const condNames = user.conditions.map((c) => ({ name: c.name, notes: c.notes }))
-    const medNames = user.medications.map((m) => m.name)
+    const condNames = conditions.map((c) => ({ name: c.name, notes: c.notes }))
+    const medNames = medications.map((m) => m.name)
 
     return getVisitPrepDemoResponse(
       appointment?.title || "General checkup",
@@ -43,19 +37,19 @@ export async function prepareForVisit(
   }
 
   const appointment = appointmentId
-    ? await prisma.appointment.findUnique({ where: { id: appointmentId } })
+    ? appointments.find(a => a.id === appointmentId) ?? null
     : null
 
-  const conditionList = user.conditions
+  const conditionList = conditions
     .map((c) => `- ${c.name}${c.severity ? ` (${c.severity})` : ""}${c.notes ? `: ${c.notes}` : ""}`)
     .join("\n")
 
-  const medList = user.medications
+  const medList = medications
     .map((m) => `- ${m.name} ${m.dosage || ""} ${m.frequency || ""}`)
     .join("\n")
 
   const provider = appointment?.providerId
-    ? user.providers.find((p) => p.id === appointment.providerId)
+    ? providers.find((p) => p.id === appointment.providerId)
     : null
 
   const prompt = `You are VisitAgent, an AI assistant that helps patients prepare for medical appointments.
@@ -64,7 +58,7 @@ APPOINTMENT DETAILS:
 - Title: ${appointment?.title || "General checkup"}
 - Provider: ${provider?.name || appointment?.providerName || "Your doctor"}
 - Reason: ${appointment?.reason || "Regular visit"}
-- Date: ${appointment?.date?.toISOString() || "Upcoming"}
+- Date: ${appointment?.date || "Upcoming"}
 
 PATIENT PROFILE:
 Conditions:
@@ -85,13 +79,6 @@ Format clearly with emoji headers. End with a simple summary.`
   const result = await model.invoke(prompt)
   const content = result.content.toString()
 
-  if (appointmentId) {
-    await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: { prepNotes: content },
-    })
-  }
-
   return { response: content, appointment }
 }
 
@@ -100,9 +87,8 @@ export async function summarizeAfterVisit(
   appointmentId: string,
   doctorNotes: string
 ) {
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: appointmentId },
-  })
+  const appointments = store.appointment.findByUser(userId)
+  const appointment = appointments.find(a => a.id === appointmentId)
 
   if (!appointment) throw new Error("Appointment not found")
 
@@ -129,11 +115,6 @@ Use extremely simple language. Avoid all medical jargon without explanation.`
 
   const result = await model.invoke(prompt)
   const content = result.content.toString()
-
-  await prisma.appointment.update({
-    where: { id: appointmentId },
-    data: { followUp: content, status: "completed" },
-  })
 
   return { response: content }
 }

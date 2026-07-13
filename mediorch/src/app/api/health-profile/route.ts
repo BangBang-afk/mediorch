@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { store } from "@/lib/store"
 
 export async function GET() {
   const session = await auth()
@@ -7,15 +7,10 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const [conditions, medications, providers, appointments] = await Promise.all([
-    prisma.condition.findMany({ where: { userId: session.user.id } }),
-    prisma.medication.findMany({ where: { userId: session.user.id } }),
-    prisma.provider.findMany({ where: { userId: session.user.id } }),
-    prisma.appointment.findMany({
-      where: { userId: session.user.id },
-      orderBy: { date: "asc" },
-    }),
-  ])
+  const conditions = store.condition.findByUser(session.user.id)
+  const medications = store.medication.findByUser(session.user.id)
+  const providers = store.provider.findByUser(session.user.id)
+  const appointments = store.appointment.findByUser(session.user.id)
 
   return Response.json({ conditions, medications, providers, appointments })
 }
@@ -34,36 +29,19 @@ export async function POST(req: Request) {
 
     switch (type) {
       case "condition": {
-        result = await prisma.condition.create({
-          data: { ...data, userId: session.user.id },
-        })
+        result = store.condition.create({ ...data, userId: session.user.id })
         break
       }
       case "medication": {
-        result = await prisma.medication.create({
-          data: {
-            ...data,
-            userId: session.user.id,
-            startedAt: data.startedAt ? new Date(data.startedAt) : undefined,
-            endDate: data.endDate ? new Date(data.endDate) : undefined,
-          },
-        })
+        result = store.medication.create({ ...data, userId: session.user.id })
         break
       }
       case "provider": {
-        result = await prisma.provider.create({
-          data: { ...data, userId: session.user.id },
-        })
+        result = store.provider.create({ ...data, userId: session.user.id })
         break
       }
       case "appointment": {
-        result = await prisma.appointment.create({
-          data: {
-            ...data,
-            userId: session.user.id,
-            date: new Date(data.date),
-          },
-        })
+        result = store.appointment.create({ ...data, userId: session.user.id })
         break
       }
       default:
@@ -92,21 +70,13 @@ export async function DELETE(req: Request) {
   }
 
   try {
-    const modelMap: Record<string, unknown> = {
-      condition: prisma.condition,
-      medication: prisma.medication,
-      provider: prisma.provider,
-      appointment: prisma.appointment,
+    switch (type) {
+      case "condition": store.condition.delete(id); break
+      case "medication": store.medication.delete(id); break
+      case "provider": store.provider.delete(id); break
+      case "appointment": store.appointment.delete(id); break
+      default: return Response.json({ error: "Invalid type" }, { status: 400 })
     }
-
-    const model = modelMap[type] as { delete: (args: { where: { id: string; userId: string } }) => unknown }
-    if (!model) {
-      return Response.json({ error: "Invalid type" }, { status: 400 })
-    }
-
-    await model.delete({
-      where: { id, userId: session.user.id },
-    } as never)
 
     return Response.json({ success: true })
   } catch {
