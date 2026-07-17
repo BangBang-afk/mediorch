@@ -1,8 +1,0 @@
-{
-  "rootDirectory": "mediorch",
-  "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "installCommand": "npm ci",
-  "outputDirectory": ".next",
-  "nodeVersion": "20.x"
-}
