@@ -304,7 +304,7 @@ export default function TimelinePage() {
           )}
         </div>
       )}
-      <VoiceInput onResult={handleVoiceResult} variant="fab" />
+      <VoiceInput onResult={handleVoiceResult} />
     </div>
   )
 }
