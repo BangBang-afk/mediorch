@@ -91,7 +91,7 @@ export async function getHealthTimeline(userId: string, days: number = 90): Prom
 
   const dates = events.map(e => e.date).concat(symptoms.map(s => s.date))
   const dateRange = dates.length > 0
-    ? { earliest: dates.toSorted()[0], latest: dates.toSorted()[dates.length - 1] }
+    ? { earliest: [...dates].sort()[0], latest: [...dates].sort()[dates.length - 1] }
     : { earliest: new Date().toISOString(), latest: new Date().toISOString() }
 
   return {

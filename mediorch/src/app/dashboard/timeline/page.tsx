@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { VoiceInput } from "@/components/voice-input"
 
 interface TimelineEvent {
   id: string; type: string; title: string; description: string | null
@@ -77,6 +78,25 @@ export default function TimelinePage() {
       e.currentTarget.reset()
       loadData()
     } else toast.error("Failed to log symptom")
+  }
+
+  async function handleVoiceResult(transcript: string) {
+    try {
+      const res = await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(data.message, { duration: 5000 })
+        loadData()
+      } else {
+        toast.error("Failed to process voice input")
+      }
+    } catch {
+      toast.error("Network error processing voice")
+    }
   }
 
   async function addEvent(e: React.FormEvent<HTMLFormElement>) {
@@ -284,6 +304,7 @@ export default function TimelinePage() {
           )}
         </div>
       )}
+      <VoiceInput onResult={handleVoiceResult} variant="fab" />
     </div>
   )
 }
