@@ -15,9 +15,12 @@ import { useState } from "react"
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "📊" },
   { href: "/dashboard/profile", label: "Health Profile", icon: "👤" },
+  { href: "/dashboard/timeline", label: "Health Timeline", icon: "📋" },
   { href: "/dashboard/agents", label: "AI Agents", icon: "🤖" },
   { href: "/dashboard/visits", label: "Visit Prep", icon: "🏥" },
   { href: "/dashboard/insights", label: "Insights", icon: "📚" },
+  { href: "/dashboard/insurance", label: "Cost Navigator", icon: "💰" },
+  { href: "/dashboard/appeals", label: "Appeals", icon: "⚖️" },
 ]
 
 export function DashboardNav({ user }: { user: { name?: string | null; email?: string | null } }) {

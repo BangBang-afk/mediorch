@@ -12,6 +12,8 @@ export default async function DashboardPage() {
   const userMedications = store.medication.findByUser(session.user.id)
   const userProviders = store.provider.findByUser(session.user.id)
   const userAppointments = store.appointment.findByUser(session.user.id)
+  const timelineEvents = store.timeline.findByUser(session.user.id)
+  const appeals = store.appeal.findByUser(session.user.id)
 
   const conditions = userConditions.length
   const medications = userMedications.filter(m => m.isActive).length
@@ -20,12 +22,14 @@ export default async function DashboardPage() {
     .filter(a => a.status === "upcoming")
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 5)
+  const eventCount = timelineEvents.length
+  const appealCount = appeals.length
 
   const stats = [
     { label: "Conditions", value: conditions, icon: "🩺", gradient: "from-blue-500 to-cyan-500" },
     { label: "Active Medications", value: medications, icon: "💊", gradient: "from-emerald-500 to-teal-500" },
-    { label: "Providers", value: providers, icon: "👨‍⚕️", gradient: "from-violet-500 to-purple-500" },
-    { label: "Upcoming Visits", value: appointments.length, icon: "🏥", gradient: "from-amber-500 to-orange-500" },
+    { label: "Timeline Events", value: eventCount, icon: "📋", gradient: "from-violet-500 to-purple-500" },
+    { label: "Active Appeals", value: appealCount, icon: "⚖️", gradient: "from-amber-500 to-orange-500" },
   ]
 
   return (
@@ -107,9 +111,10 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {[
-              { href: "/dashboard/profile", emoji: "📄", title: "Scan a prescription", desc: "Upload a photo or PDF to auto-fill your profile" },
-              { href: "/dashboard/agents", emoji: "🤖", title: "Talk to your AI agents", desc: "Check medications, prep for visits, or research conditions" },
-              { href: "/dashboard/visits", emoji: "🏥", title: "Prepare for a visit", desc: "Generate talking points and questions for your doctor" },
+              { href: "/dashboard/timeline", emoji: "📋", title: "Log symptoms & timeline", desc: "Build your continuous health story with every symptom and event" },
+              { href: "/dashboard/insights", emoji: "🔬", title: "Cross-Reference Engine", desc: "Check medications, foods, and symptoms for hidden interactions" },
+              { href: "/dashboard/insurance", emoji: "💰", title: "Cost Navigator", desc: "Find best hospitals for your treatment and budget near any ZIP" },
+              { href: "/dashboard/appeals", emoji: "⚖️", title: "Appeal denied claims", desc: "Generate clinically-cited insurance appeal letters" },
             ].map((action) => (
               <Link
                 key={action.href}
