@@ -1,14 +1,8 @@
 {
-  "projects": [
-    {
-      "name": "mediorch",
-      "rootDirectory": "mediorch/",
-      "buildCommand": "npm run build",
-      "devCommand": "npm run dev",
-      "installCommand": "npm ci",
-      "framework": "nextjs",
-      "nodeVersion": "20.x"
-    }
-  ]
+  "rootDirectory": "mediorch",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "outputDirectory": ".next",
+  "nodeVersion": "20.x"
 }
-
